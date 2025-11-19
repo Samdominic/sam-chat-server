@@ -1,6 +1,5 @@
 {
   "version": 2,
-  "rootDirectory": "sam-chat-server",
   "builds": [
     { "src": "index.ts", "use": "@vercel/node" }
   ],
