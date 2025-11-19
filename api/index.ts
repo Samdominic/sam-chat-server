@@ -1,40 +1,49 @@
-import express from "express";
-import { Request, Response } from "express";
-import cors from "cors";
-import dotenv from "dotenv";
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import Groq from 'groq-sdk';
+import dotenv from "dotenv";
 
 dotenv.config();
 
-const app = express();
-const port = process.env.PORT || 3000;
 const client = new Groq({
-  apiKey: process.env.GROQ_API_KEY, // This is the default and can be omitted
+  apiKey: process.env.GROQ_API_KEY,
 });
 
-app.use(cors());
-app.use(express.json());
+// Helper for CORS
+function setCors(res: VercelResponse) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
 
-// Default route
-app.get("/", (req: Request, res: Response) => {
-  res.json({ message: "Hello from server" });
-});
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setCors(res);
 
-// Example POST route
-app.post("/chat", async (req: Request, res: Response) => {
-  const { messages } = req.body;
-  const resp = await client.chat.completions.create({
-    model: 'llama-3.1-8b-instant',
-    messages: [
-      { role: 'system', content: 'You are a helpful assistant. Your name is Sam AI.' },
-      ...messages
-    ]
-  });
-  res.json({
-    reply: resp.choices[0].message.content
-  });
-});
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
 
-app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
-});
+  // GET /
+  if (req.method === "GET" && req.url === "/api") {
+    return res.status(200).json({ message: "Hello from Vercel server" });
+  }
+
+  // POST /chat
+  if (req.method === "POST" && req.url === "/api/chat") {
+    const { messages } = req.body;
+
+    const resp = await client.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        { role: "system", content: "You are a helpful assistant. Your name is Sam AI." },
+        ...messages
+      ],
+    });
+
+    return res.status(200).json({
+      reply: resp.choices[0].message.content,
+    });
+  }
+
+  // Not found
+  return res.status(404).json({ error: "Not found" });
+}
