@@ -1,49 +1,29 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import Groq from 'groq-sdk';
-import dotenv from "dotenv";
+import express from "express";
+import cors from "cors";
+import Groq from "groq-sdk";
 
-dotenv.config();
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-const client = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
+const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+
+app.get("/", (req, res) => {
+  res.json({ message: "Hello from Express server" });
 });
 
-// Helper for CORS
-function setCors(res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-}
+app.post("/chat", async (req, res) => {
+  const { messages } = req.body;
+  const resp = await client.chat.completions.create({
+    model: "llama-3.1-8b-instant",
+    messages: [
+      { role: "system", content: "You are Sam AI." },
+      ...messages,
+    ],
+  });
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  setCors(res);
+  res.json({ reply: resp.choices[0].message.content });
+});
 
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-
-  // GET /
-  if (req.method === "GET" && req.url === "/api") {
-    return res.status(200).json({ message: "Hello from Vercel server" });
-  }
-
-  // POST /chat
-  if (req.method === "POST" && req.url === "/api/chat") {
-    const { messages } = req.body;
-
-    const resp = await client.chat.completions.create({
-      model: "llama-3.1-8b-instant",
-      messages: [
-        { role: "system", content: "You are a helpful assistant. Your name is Sam AI." },
-        ...messages
-      ],
-    });
-
-    return res.status(200).json({
-      reply: resp.choices[0].message.content,
-    });
-  }
-
-  // Not found
-  return res.status(404).json({ error: "Not found" });
-}
+// IMPORTANT: Export handler instead of app.listen()
+export default app;
