@@ -1,11 +1,12 @@
 import express from "express";
 import cors from "cors";
 import Groq from "groq-sdk";
+import dotenv from "dotenv";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+dotenv.config();
 const client = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 app.get("/", (req, res) => {
